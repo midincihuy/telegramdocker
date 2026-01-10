@@ -44,6 +44,12 @@ async def time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start, finish, hour = args
     get_time_evaluasi(start=start, finish=finish, hour_before=hour)
 
+FUNCTION_MAP = {
+    "check": get_klasemen,
+    "skor": get_skor,
+    "time": get_time_evaluasi,
+}
+
 def main():
     if not BOT_TOKEN or not SHEET_ID:
         raise RuntimeError("BOT_TOKEN / SHEET_ID belum diset")
@@ -63,12 +69,19 @@ def main():
         schedules = get_schedule(SHEET_ID)
 
         for i, s in enumerate(schedules):
+            func_name = s["function"]
+            func = FUNCTION_MAP.get(func_name)
+            if not callable(func):
+                logging.warning("Unknown function: %s", func_name)
+                continue
             scheduler.add_job(
-                send_message,
+                func,
                 trigger="cron",
                 hour=s["hour"],
                 minute=s["minute"],
-                args=[app, s["chat_id"], s["message"]],
+                kwargs={
+                    **s["params"]
+                },
                 id=f"sheet-job-{i}",
                 replace_existing=True,
             )
@@ -76,12 +89,19 @@ def main():
     schedules = get_schedule(SHEET_ID)
 
     for i, s in enumerate(schedules):
+        func_name = s["function"]
+        func = FUNCTION_MAP.get(func_name)
+        if not callable(func):
+            logging.warning("Unknown function: %s", func_name)
+            continue
         scheduler.add_job(
-            send_message,
+            func,
             trigger="cron",
             hour=s["hour"],
             minute=s["minute"],
-            args=[app, s["chat_id"], s["message"]],
+            kwargs={
+                **s["params"]
+            },
             id=f"sheet-job-{i}",
             replace_existing=True,
         )
