@@ -23,7 +23,7 @@ def get_schedule(sheet_id: str):
         if len(row) < 5:
             continue
 
-        active, hour, minute, chat_id, message, function, params = row
+        active, hour, minute, interval, description, function, params = row
 
         if active.upper() != "TRUE":
             continue
@@ -31,8 +31,8 @@ def get_schedule(sheet_id: str):
         schedules.append({
             "hour": int(hour),
             "minute": int(minute),
-            "chat_id": chat_id,
-            "message": message,
+            "interval": interval.strip(),
+            "description": description,
             "function": function,
             "params": json.loads(params),
         })

@@ -74,6 +74,59 @@ def main():
             if not callable(func):
                 logging.warning("Unknown function: %s", func_name)
                 continue
+            if s["interval"]:
+                logging.warning("interval function: %s", func_name)
+                if not s["interval"].isdigit():
+                    logging.warning("Invalid interval: %s", s["interval"])
+                    continue
+                scheduler.add_job(
+                    func,
+                    trigger="interval",
+                    minutes=int(s["interval"]),
+                    kwargs={
+                        **s["params"]
+                    },
+                    id=f"sheet-job-{i}",
+                    replace_existing=True,
+                )
+            else:
+                scheduler.add_job(
+                    func,
+                    trigger="cron",
+                    hour=s["hour"],
+                    minute=s["minute"],
+                    kwargs={
+                        **s["params"]
+                    },
+                    id=f"sheet-job-{i}",
+                    replace_existing=True,
+                )
+
+    schedules = get_schedule(SHEET_ID)
+
+    for i, s in enumerate(schedules):
+        func_name = s["function"]
+        func = FUNCTION_MAP.get(func_name)
+        if not callable(func):
+            logging.warning("Unknown function: %s", func_name)
+            continue
+        if s["interval"]:
+            logging.warning("interval function: %s", func_name)
+
+            if not s["interval"].isdigit():
+                logging.warning("Invalid interval: %s", s["interval"])
+                continue
+            scheduler.add_job(
+                func,
+                trigger="interval",
+                minutes=int(s["interval"]),
+                kwargs={
+                    **s["params"]
+                },
+                id=f"sheet-job-{i}",
+                replace_existing=True,
+            )
+        else:
             scheduler.add_job(
                 func,
                 trigger="cron",
@@ -85,26 +138,6 @@ def main():
                 id=f"sheet-job-{i}",
                 replace_existing=True,
             )
-
-    schedules = get_schedule(SHEET_ID)
-
-    for i, s in enumerate(schedules):
-        func_name = s["function"]
-        func = FUNCTION_MAP.get(func_name)
-        if not callable(func):
-            logging.warning("Unknown function: %s", func_name)
-            continue
-        scheduler.add_job(
-            func,
-            trigger="cron",
-            hour=s["hour"],
-            minute=s["minute"],
-            kwargs={
-                **s["params"]
-            },
-            id=f"sheet-job-{i}",
-            replace_existing=True,
-        )
     scheduler.add_job(
         reload_jobs,
         trigger="interval",
@@ -112,7 +145,6 @@ def main():
         args=[scheduler, app],
     )
     scheduler.start()
-
     logging.info("📅 Loaded %s schedules from Google Sheet", len(schedules))
     app.run_polling()
 
