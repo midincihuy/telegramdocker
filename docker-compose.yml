@@ -1,0 +1,11 @@
+services:
+  telegram-bot:
+    build: .
+    container_name: telegram_bot
+    restart: unless-stopped
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN}
+      SHEET_ID: ${SHEET_ID}
+      HOUR_BEFORE: ${HOUR_BEFORE}
+    volumes:
+      - ./credentials:/credentials:ro
