@@ -2,15 +2,16 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 import json
 
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-creds = service_account.Credentials.from_service_account_file(
-        "/credentials/service_account.json",
-        scopes=SCOPES,
-    )
-
-service = build("sheets", "v4", credentials=creds)
 
 def get_schedule(sheet_id: str):
+    SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    creds = service_account.Credentials.from_service_account_file(
+            "/credentials/service_account.json",
+            scopes=SCOPES,
+        )
+
+    service = build("sheets", "v4", credentials=creds)
+
     result = service.spreadsheets().values().get(
         spreadsheetId=sheet_id,
         range="Schedule!A2:G"
@@ -20,7 +21,7 @@ def get_schedule(sheet_id: str):
     schedules = []
 
     for row in rows:
-        if len(row) < 5:
+        if len(row) < 7:
             continue
 
         active, hour, minute, interval, day, function, params = row
