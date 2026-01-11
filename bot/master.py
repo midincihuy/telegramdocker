@@ -236,6 +236,9 @@ def get_time_evaluasi(start=2, finish="", hour_before=HOUR_BEFORE, chunk_size=30
             sendNotifTele("success save rawtime Start : "+str(start)+" Finish : "+str(finish)+" hour : "+str(hour_before))
 
 def get_klasemen(hour_before=HOUR_BEFORE):
+    creds = Credentials.from_service_account_file(CREDENTIALS_PATH, scopes=SCOPES)
+    sheets_service = build('sheets', 'v4', credentials=creds)
+    web_root = "https://admin.hsi.id"
     service, spreadsheet_id = sheets_service, SPREADSHEET_ID
     evaluasi = set_evaluasi_aktif(service, spreadsheet_id, hour_before)
     if(evaluasi):
