@@ -11,8 +11,11 @@ from telegram.ext import (
 )
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+
 from sheet import get_schedule
 from master import get_klasemen, get_skor, get_time_evaluasi
+
 logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -75,26 +78,39 @@ def main():
                 logging.warning("Unknown function: %s", func_name)
                 continue
             if s["interval"]:
-                logging.warning("interval function: %s", func_name)
                 if not s["interval"].isdigit():
                     logging.warning("Invalid interval: %s", s["interval"])
                     continue
+                interval = s["interval"]
+                trigger_kwargs = {
+                    "minute": f"*/{interval}"
+                }
+                
+                if s["day"]:
+                    trigger_kwargs["day_of_week"] = s["day"]
+
                 scheduler.add_job(
                     func,
-                    trigger="interval",
-                    minutes=int(s["interval"]),
+                    trigger=CronTrigger(**trigger_kwargs),
                     kwargs={
                         **s["params"]
                     },
                     id=f"sheet-job-{i}",
                     replace_existing=True,
                 )
+                logging.info("interval function: %s", func_name)
             else:
+                trigger_kwargs = {
+                    "hour": s["hour"],
+                    "minute": s["minute"],
+                }
+                
+                if s["day"]:
+                    trigger_kwargs["day_of_week"] = s["day"]
+
                 scheduler.add_job(
                     func,
-                    trigger="cron",
-                    hour=s["hour"],
-                    minute=s["minute"],
+                    trigger=CronTrigger(**trigger_kwargs),
                     kwargs={
                         **s["params"]
                     },
@@ -111,27 +127,40 @@ def main():
             logging.warning("Unknown function: %s", func_name)
             continue
         if s["interval"]:
-            logging.warning("interval function: %s", func_name)
 
             if not s["interval"].isdigit():
                 logging.warning("Invalid interval: %s", s["interval"])
                 continue
+            interval = s["interval"]
+            trigger_kwargs = {
+                "minute": f"*/{interval}"
+            }
+            
+            if s["day"]:
+                trigger_kwargs["day_of_week"] = s["day"]
+
             scheduler.add_job(
                 func,
-                trigger="interval",
-                minutes=int(s["interval"]),
+                trigger=CronTrigger(**trigger_kwargs),
                 kwargs={
                     **s["params"]
                 },
                 id=f"sheet-job-{i}",
                 replace_existing=True,
             )
+            logging.info("interval function: %s", func_name)
         else:
+            trigger_kwargs = {
+                "hour": s["hour"],
+                "minute": s["minute"],
+            }
+            
+            if s["day"]:
+                trigger_kwargs["day_of_week"] = s["day"]
+
             scheduler.add_job(
                 func,
-                trigger="cron",
-                hour=s["hour"],
-                minute=s["minute"],
+                trigger=CronTrigger(**trigger_kwargs),
                 kwargs={
                     **s["params"]
                 },
