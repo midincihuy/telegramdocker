@@ -120,6 +120,14 @@ def main():
                     id=f"sheet-job-{i}",
                     replace_existing=True,
                 )
+            trigger_kwargs = {
+                "minute": f"*/5"
+            }
+            scheduler.add_job(
+                reload_jobs,
+                trigger=CronTrigger(**trigger_kwargs,timezone=TZ),        
+                args=[scheduler, app],
+            )
 
     schedules = get_schedule(SHEET_ID)
 
