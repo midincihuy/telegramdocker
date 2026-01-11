@@ -15,6 +15,9 @@ from apscheduler.triggers.cron import CronTrigger
 
 from sheet import get_schedule
 from master import get_klasemen, get_skor, get_time_evaluasi
+from zoneinfo import ZoneInfo
+
+TZ = ZoneInfo("Asia/Jakarta")
 
 logging.basicConfig(level=logging.INFO)
 
@@ -91,7 +94,7 @@ def main():
 
                 scheduler.add_job(
                     func,
-                    trigger=CronTrigger(**trigger_kwargs),
+                    trigger=CronTrigger(**trigger_kwargs,timezone=TZ),
                     kwargs={
                         **s["params"]
                     },
@@ -110,7 +113,7 @@ def main():
 
                 scheduler.add_job(
                     func,
-                    trigger=CronTrigger(**trigger_kwargs),
+                    trigger=CronTrigger(**trigger_kwargs,timezone=TZ),
                     kwargs={
                         **s["params"]
                     },
@@ -141,7 +144,7 @@ def main():
 
             scheduler.add_job(
                 func,
-                trigger=CronTrigger(**trigger_kwargs),
+                trigger=CronTrigger(**trigger_kwargs,timezone=TZ),
                 kwargs={
                     **s["params"]
                 },
@@ -160,17 +163,19 @@ def main():
 
             scheduler.add_job(
                 func,
-                trigger=CronTrigger(**trigger_kwargs),
+                trigger=CronTrigger(**trigger_kwargs,timezone=TZ),
                 kwargs={
                     **s["params"]
                 },
                 id=f"sheet-job-{i}",
                 replace_existing=True,
             )
+    trigger_kwargs = {
+        "minute": f"*/5"
+    }
     scheduler.add_job(
         reload_jobs,
-        trigger="interval",
-        minutes=5,
+        trigger=CronTrigger(**trigger_kwargs,timezone=TZ),        
         args=[scheduler, app],
     )
     scheduler.start()
