@@ -36,99 +36,10 @@ async def send_message(app, chat_id, message):
         chat_id=chat_id,
         text=message
     )
-async def test(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await send_message(context.application, "151065522", 'ini hanya test')
 
-async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    get_klasemen(HOUR_BEFORE)
-
-async def skor(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    get_skor()
-
-async def time(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    args = context.args
-    start, finish, hour = args
-    get_time_evaluasi(start=start, finish=finish, hour_before=hour)
-
-FUNCTION_MAP = {
-    "check": get_klasemen,
-    "skor": get_skor,
-    "time": get_time_evaluasi,
-}
-
-def main():
-    if not BOT_TOKEN or not SHEET_ID:
-        raise RuntimeError("BOT_TOKEN / SHEET_ID belum diset")
-
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("test", test))
-    app.add_handler(CommandHandler("check", check))
-    app.add_handler(CommandHandler("skor", skor))
-    app.add_handler(CommandHandler("time", time))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
-
-    scheduler = AsyncIOScheduler(timezone="Asia/Jakarta")
-    def reload_jobs(scheduler, app):
-        scheduler.remove_all_jobs()
-        schedules = get_schedule(SHEET_ID)
-
-        for i, s in enumerate(schedules):
-            func_name = s["function"]
-            func = FUNCTION_MAP.get(func_name)
-            if not callable(func):
-                logging.warning("Unknown function: %s", func_name)
-                continue
-            if s["interval"]:
-                if not s["interval"].isdigit():
-                    logging.warning("Invalid interval: %s", s["interval"])
-                    continue
-                interval = s["interval"]
-                trigger_kwargs = {
-                    "minute": f"*/{interval}"
-                }
-                
-                if s["day"]:
-                    trigger_kwargs["day_of_week"] = s["day"]
-
-                scheduler.add_job(
-                    func,
-                    trigger=CronTrigger(**trigger_kwargs,timezone=TZ),
-                    kwargs={
-                        **s["params"]
-                    },
-                    id=f"sheet-job-{i}",
-                    replace_existing=True,
-                )
-                logging.info("interval function: %s", func_name)
-            else:
-                trigger_kwargs = {
-                    "hour": s["hour"],
-                    "minute": s["minute"],
-                }
-                
-                if s["day"]:
-                    trigger_kwargs["day_of_week"] = s["day"]
-
-                scheduler.add_job(
-                    func,
-                    trigger=CronTrigger(**trigger_kwargs,timezone=TZ),
-                    kwargs={
-                        **s["params"]
-                    },
-                    id=f"sheet-job-{i}",
-                    replace_existing=True,
-                )
-            trigger_kwargs = {
-                "minute": f"*/5"
-            }
-        scheduler.add_job(
-            reload_jobs,
-            trigger=CronTrigger(**trigger_kwargs,timezone=TZ),        
-            args=[scheduler, app],
-        )
-
+scheduler = AsyncIOScheduler(timezone="Asia/Jakarta")
+def reload_jobs(app):
+    scheduler.remove_all_jobs()
     schedules = get_schedule(SHEET_ID)
 
     for i, s in enumerate(schedules):
@@ -138,7 +49,6 @@ def main():
             logging.warning("Unknown function: %s", func_name)
             continue
         if s["interval"]:
-
             if not s["interval"].isdigit():
                 logging.warning("Invalid interval: %s", s["interval"])
                 continue
@@ -178,16 +88,42 @@ def main():
                 id=f"sheet-job-{i}",
                 replace_existing=True,
             )
-    trigger_kwargs = {
-        "minute": f"*/5"
-    }
-    scheduler.add_job(
-        reload_jobs,
-        trigger=CronTrigger(**trigger_kwargs,timezone=TZ),        
-        args=[scheduler, app],
-    )
-    scheduler.start()
     logging.info("📅 Loaded %s schedules from Google Sheet", len(schedules))
+    scheduler.start()
+
+async def reload(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    reload_jobs(context.application)
+
+async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    get_klasemen(HOUR_BEFORE)
+
+async def skor(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    get_skor()
+
+async def time(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    args = context.args
+    start, finish, hour = args
+    get_time_evaluasi(start=start, finish=finish, hour_before=hour)
+
+FUNCTION_MAP = {
+    "check": get_klasemen,
+    "skor": get_skor,
+    "time": get_time_evaluasi,
+}
+
+def main():
+    if not BOT_TOKEN or not SHEET_ID:
+        raise RuntimeError("BOT_TOKEN / SHEET_ID belum diset")
+
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("reload", reload))
+    app.add_handler(CommandHandler("check", check))
+    app.add_handler(CommandHandler("skor", skor))
+    app.add_handler(CommandHandler("time", time))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+    reload_jobs(app)
     app.run_polling()
 
 if __name__ == "__main__":
