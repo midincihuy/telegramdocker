@@ -10,9 +10,8 @@ from telegram.ext import (
     filters,
 )
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler, asyncio
 from apscheduler.triggers.cron import CronTrigger
-
 from sheet import get_schedule
 from master import get_klasemen, get_skor, get_time_evaluasi
 from zoneinfo import ZoneInfo
@@ -38,6 +37,14 @@ async def send_message(app, chat_id, message):
     )
 
 scheduler = AsyncIOScheduler(timezone="Asia/Jakarta")
+async def run_job(func, **kwargs):
+    try:
+        result = func(**kwargs)
+        if asyncio.iscoroutine(result):
+            await result
+    except Exception:
+        logging.exception("Job failed")
+
 def reload_jobs(app):
     scheduler.remove_all_jobs()
     schedules = get_schedule(SHEET_ID)
@@ -52,7 +59,7 @@ def reload_jobs(app):
             if not s["interval"].isdigit():
                 logging.warning("Invalid interval: %s", s["interval"])
                 continue
-            interval = s["interval"]
+            interval = int(s["interval"])
             trigger_kwargs = {
                 "minute": f"*/{interval}"
             }
@@ -61,9 +68,10 @@ def reload_jobs(app):
                 trigger_kwargs["day_of_week"] = s["day"]
 
             scheduler.add_job(
-                func,
+                run_job,
                 trigger=CronTrigger(**trigger_kwargs,timezone=TZ),
                 kwargs={
+                    "func": func,
                     **s["params"]
                 },
                 id=f"sheet-job-{i}",
@@ -80,19 +88,26 @@ def reload_jobs(app):
                 trigger_kwargs["day_of_week"] = s["day"]
 
             scheduler.add_job(
-                func,
+                run_job,
                 trigger=CronTrigger(**trigger_kwargs,timezone=TZ),
                 kwargs={
+                    "func": func,
                     **s["params"]
                 },
                 id=f"sheet-job-{i}",
                 replace_existing=True,
             )
     logging.info("📅 Loaded %s schedules from Google Sheet", len(schedules))
-    scheduler.start()
+    if not scheduler.running:
+        scheduler.start()
 
 async def reload(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    reload_jobs(context.application)
+    try:
+        reload_jobs(context.application)
+        await update.message.reply_text("🔄 Scheduler berhasil di-reload")
+    except Exception as e:
+        logging.exception("Reload failed")
+        await update.message.reply_text(f"❌ Reload gagal:\n{e}")
 
 async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
     get_klasemen(HOUR_BEFORE)
